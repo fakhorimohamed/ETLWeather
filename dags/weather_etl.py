@@ -1,11 +1,8 @@
-import http
-from plistlib import load
-
 from airflow import DAG
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.decorators import task
-from airflow.utils.dates import days_ago
+from datetime import datetime, timedelta, timezone
 
 import requests 
 import json 
@@ -17,19 +14,18 @@ LONGITUDE = '-5.0003'
 POSTGRES_CONN_ID='postgres_default'
 API_CONN_ID='open_meteo_api'
 
-
 default_args = {
     'owner':'airflow',
-    'start_date':days_ago(1)
+    'start_date': datetime(2026, 9, 30, tzinfo=timezone.utc),
 }
 
 
 #DAG 
-with DAG(dag_id="weather_etl_pipeline" ,default_args=default_args ,weather_etl_pipeline="@daily" ,catchup=False ) as dags :
+with DAG(dag_id="weather_etl_pipeline" ,default_args=default_args ,schedule="@daily" ,catchup=False ) as dags :
     @task 
     def extract_weather_data() : 
         """Extract weather data from Open-Meteo API using Airflow Connection."""
-        http_hook = HttpHook(http_conn_id=API_CONN_ID , method='GRT') 
+        http_hook = HttpHook(http_conn_id=API_CONN_ID , method='GET') 
         #Build and endpoint
         endpoint=f'/v1/forecast?latitude={LATITUDE}&longitude={LONGITUDE}&current_weather=true'
         
@@ -93,5 +89,5 @@ with DAG(dag_id="weather_etl_pipeline" ,default_args=default_args ,weather_etl_p
     
     weather_data = extract_weather_data()
     transformed_data = transform_weather_data(weather_data)
-    load_weather_data() 
+    load_weather_data(transformed_data) 
     
